@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>지원자 대시보드</title>
+  <style>
+    /* ── Reset & Base ──────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ────────────────────────────────────────── */
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      gap: 16px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .header-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .header-stats {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .stat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .stat-chip.total        { background: #f1f5f9; color: #475569; }
+    .stat-chip.track-ANALYSIS      { background: #ede9fe; color: #7c3aed; }
+    .stat-chip.track-VISUALIZATION { background: #fef3c7; color: #d97706; }
+    .stat-chip.track-ENGINEERING   { background: #dbeafe; color: #2563eb; }
+
+    /* ── Toolbar ───────────────────────────────────────── */
+    .toolbar {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 56px;
+      z-index: 99;
+    }
+    .tb-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tb-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+    .pill-group {
+      display: flex;
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .pill {
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      color: #64748b;
+      transition: all 0.15s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .pill:hover { color: #1e293b; }
+    .pill.active {
+      background: #fff;
+      color: #1e293b;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+    .pill.p-ANALYSIS.active      { color: #7c3aed; }
+    .pill.p-VISUALIZATION.active { color: #d97706; }
+    .pill.p-ENGINEERING.active   { color: #2563eb; }
+    .pill.p-pass.active      { color: #16a34a; }
+    .pill.p-fail.active      { color: #dc2626; }
+    .pill.p-hold.active      { color: #ca8a04; }
+    .pill.p-pending.active   { color: #64748b; }
+
+    select {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 5px 8px;
+      font-size: 13px;
+      color: #1e293b;
+      background: #fff;
+      outline: none;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 180px;
+    }
+    .search-wrap svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      pointer-events: none;
+    }
+    .search-wrap input {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 6px 10px 6px 32px;
+      font-size: 13px;
+      color: #1e293b;
+      background: #fff;
+      outline: none;
+      font-family: inherit;
+    }
+    .search-wrap input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .search-wrap input::placeholder { color: #cbd5e1; }
+
+    .sort-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    /* ── Main ──────────────────────────────────────────── */
+    .main {
+      padding: 20px 24px;
+    }
+    .table-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .table-count { font-size: 13px; color: #64748b; }
+    .table-count strong { color: #1e293b; }
+
+    /* ── Table ─────────────────────────────────────────── */
+    .table-wrap {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+    th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    td {
+      padding: 11px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+    tbody tr {
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    tbody tr:hover { background: #f8fafc; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr.selected { background: #eff6ff !important; }
+
+    .applicant-name  { font-weight: 600; color: #0f172a; }
+    .applicant-sub   { font-size: 12px; color: #94a3b8; margin-top: 1px; }
+    .univ-name       { font-size: 13px; color: #1e293b; }
+    .major-name      { font-size: 12px; color: #94a3b8; }
+
+    /* ── Badges ────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge.track-ANALYSIS      { background: #ede9fe; color: #7c3aed; }
+    .badge.track-VISUALIZATION { background: #fef3c7; color: #d97706; }
+    .badge.track-ENGINEERING   { background: #dbeafe; color: #2563eb; }
+    .badge.track-기타          { background: #f1f5f9; color: #64748b; }
+
+    .badge.status-SUBMITTED { background: #dcfce7; color: #16a34a; }
+    .badge.status-DRAFT     { background: #f1f5f9; color: #94a3b8; }
+
+    .badge.d-pending { background: #f1f5f9; color: #94a3b8; }
+    .badge.d-pass    { background: #dcfce7; color: #16a34a; }
+    .badge.d-fail    { background: #fee2e2; color: #dc2626; }
+    .badge.d-hold    { background: #fef9c3; color: #ca8a04; }
+
+    /* ── Empty / Loading ───────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 64px 24px;
+      color: #94a3b8;
+    }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state p  { font-size: 15px; font-weight: 500; color: #64748b; }
+    .empty-state small { font-size: 13px; }
+    .loading-cell { text-align: center; padding: 48px; color: #94a3b8; }
+
+    /* ── Overlay ───────────────────────────────────────── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.35);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .overlay.active { opacity: 1; pointer-events: auto; }
+
+    /* ── Detail Panel ──────────────────────────────────── */
+    .panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(660px, 100vw);
+      height: 100vh;
+      background: #fff;
+      z-index: 300;
+      box-shadow: -8px 0 32px rgba(0,0,0,0.12);
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .panel.open { transform: translateX(0); }
+
+    .panel-hdr {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .panel-hdr-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .panel-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .panel-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: #f1f5f9;
+      color: #64748b;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .panel-close:hover { background: #e2e8f0; color: #1e293b; }
+
+    .panel-tabs {
+      display: flex;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0 20px;
+      flex-shrink: 0;
+    }
+    .panel-tab {
+      padding: 11px 14px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .panel-tab:hover { color: #475569; }
+    .panel-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    /* ── Application Tab ───────────────────────────────── */
+    .section { margin-bottom: 24px; }
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 16px;
+    }
+    .info-item { display: flex; flex-direction: column; gap: 2px; }
+    .info-item.full { grid-column: 1 / -1; }
+    .info-lbl {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .info-val { font-size: 14px; color: #1e293b; font-weight: 500; }
+
+    .divider { border: none; border-top: 1px solid #f1f5f9; margin: 20px 0; }
+
+    .answer-item { margin-bottom: 18px; }
+    .answer-qid {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+    .qid-tag {
+      background: #eff6ff;
+      color: #3b82f6;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .answer-text {
+      font-size: 14px;
+      color: #1e293b;
+      line-height: 1.75;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .json-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+    }
+    .json-tbl th, .json-tbl td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: left; }
+    .json-tbl th { background: #f8fafc; font-weight: 700; color: #64748b; font-size: 11px; text-transform: uppercase; }
+    .json-tbl tr:last-child td { border-bottom: none; }
+
+    /* ── Evaluation Tab ────────────────────────────────── */
+    .eval-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 10px;
+      display: block;
+    }
+    .decision-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .dec-btn {
+      padding: 11px 6px;
+      border-radius: 8px;
+      border: 2px solid #e2e8f0;
+      background: #fff;
+      cursor: pointer;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+      transition: all 0.15s;
+      color: #94a3b8;
+      font-family: inherit;
+    }
+    .dec-btn:hover { border-color: #94a3b8; color: #475569; }
+    .dec-btn.sel-pass    { border-color: #22c55e; background: #dcfce7; color: #16a34a; }
+    .dec-btn.sel-fail    { border-color: #ef4444; background: #fee2e2; color: #dc2626; }
+    .dec-btn.sel-hold    { border-color: #f59e0b; background: #fef9c3; color: #ca8a04; }
+    .dec-btn.sel-pending { border-color: #94a3b8; background: #f8fafc; color: #64748b; }
+
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .score-input {
+      width: 72px;
+      padding: 8px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 20px;
+      font-weight: 700;
+      text-align: center;
+      color: #1e293b;
+      font-family: inherit;
+      outline: none;
+    }
+    .score-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .score-suffix { font-size: 14px; color: #94a3b8; }
+
+    .memo-area {
+      width: 100%;
+      min-height: 120px;
+      padding: 10px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      line-height: 1.65;
+      color: #1e293b;
+      transition: border-color 0.15s;
+      margin-bottom: 16px;
+    }
+    .memo-area:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .memo-area::placeholder { color: #cbd5e1; }
+
+    .save-btn {
+      width: 100%;
+      padding: 12px;
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-family: inherit;
+    }
+    .save-btn:hover:not(:disabled) { background: #2563eb; }
+    .save-btn:disabled { background: #93c5fd; cursor: not-allowed; }
+
+    .save-msg {
+      text-align: center;
+      font-size: 13px;
+      margin-top: 8px;
+      min-height: 20px;
+    }
+    .save-msg.ok  { color: #16a34a; }
+    .save-msg.err { color: #dc2626; }
+
+    .eval-footer {
+      text-align: center;
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 12px;
+    }
+
+    /* ── CSV Button ────────────────────────────────────── */
+    .csv-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .csv-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: #1e293b; }
+    .csv-btn:active { background: #e2e8f0; }
+
+    /* ── Scrollbar ─────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────── -->
+<header>
+  <div class="header-left">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="8" fill="#3b82f6"/>
+      <path d="M8 9h12M8 14h12M8 19h7" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+    <span class="header-title">지원자 대시보드</span>
+  </div>
+  <div class="header-stats" id="header-stats"></div>
+</header>
+
+<!-- ── Toolbar ──────────────────────────────────────────── -->
+<div class="toolbar">
+  <div class="tb-group">
+    <span class="tb-label">공고</span>
+    <select id="sel-rec" onchange="onRecChange()">
+      <option value="">전체</option>
+    </select>
+  </div>
+
+  <div class="tb-group">
+    <span class="tb-label">트랙</span>
+    <div class="pill-group" id="track-pills">
+      <button class="pill active" data-track=""                   onclick="setPill('track',this,'')">전체</button>
+      <button class="pill p-ANALYSIS" data-track="ANALYSIS"       onclick="setPill('track',this,'ANALYSIS')">분석</button>
+      <button class="pill p-VISUALIZATION" data-track="VISUALIZATION" onclick="setPill('track',this,'VISUALIZATION')">시각화</button>
+      <button class="pill p-ENGINEERING" data-track="ENGINEERING" onclick="setPill('track',this,'ENGINEERING')">엔지니어링</button>
+    </div>
+  </div>
+
+  <div class="tb-group">
+    <span class="tb-label">상태</span>
+    <div class="pill-group" id="status-pills">
+      <button class="pill active" data-status=""            onclick="setPill('status',this,'')">전체</button>
+      <button class="pill" data-status="SUBMITTED"          onclick="setPill('status',this,'SUBMITTED')">제출</button>
+      <button class="pill" data-status="DRAFT"              onclick="setPill('status',this,'DRAFT')">임시저장</button>
+    </div>
+  </div>
+
+  <div class="tb-group">
+    <span class="tb-label">평가</span>
+    <div class="pill-group" id="decision-pills">
+      <button class="pill active" data-dec=""         onclick="setPill('decision',this,'')">전체</button>
+      <button class="pill p-pending" data-dec="pending" onclick="setPill('decision',this,'pending')">검토중</button>
+      <button class="pill p-pass" data-dec="pass"     onclick="setPill('decision',this,'pass')">합격</button>
+      <button class="pill p-hold" data-dec="hold"     onclick="setPill('decision',this,'hold')">보류</button>
+      <button class="pill p-fail" data-dec="fail"     onclick="setPill('decision',this,'fail')">불합격</button>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input type="search" id="search-input" placeholder="이름, 이메일, 대학교, 전공 검색..."
+           oninput="onSearch()">
+  </div>
+
+  <div class="sort-wrap">
+    <span class="tb-label">정렬</span>
+    <select id="sel-sort" onchange="onSortChange()">
+      <option value="created_at|desc">제출 시각 최신순</option>
+      <option value="created_at|asc">제출 시각 오래된순</option>
+      <option value="name|asc">이름 오름차순</option>
+      <option value="name|desc">이름 내림차순</option>
+      <option value="university|asc">대학교순</option>
+    </select>
+    <button class="csv-btn" onclick="downloadCSV()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      CSV 다운로드
+    </button>
+  </div>
+</div>
+
+<!-- ── Main ─────────────────────────────────────────────── -->
+<div class="main">
+  <div class="table-meta">
+    <span class="table-count" id="tbl-count">불러오는 중...</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>지원자</th>
+          <th>트랙</th>
+          <th>대학교 / 전공</th>
+          <th>학기</th>
+          <th>졸업예정</th>
+          <th>제출일</th>
+          <th>상태</th>
+          <th>평가</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="8" class="loading-cell">불러오는 중...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Overlay ──────────────────────────────────────────── -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+
+<!-- ── Detail Panel ─────────────────────────────────────── -->
+<div class="panel" id="panel">
+  <div class="panel-hdr">
+    <div class="panel-hdr-left">
+      <span class="panel-name" id="p-name">—</span>
+      <span class="badge" id="p-track"></span>
+    </div>
+    <button class="panel-close" onclick="closePanel()" title="닫기 (Esc)">✕</button>
+  </div>
+  <div class="panel-tabs">
+    <button class="panel-tab active" id="pt-app" onclick="switchTab('app')">📄 지원서</button>
+    <button class="panel-tab" id="pt-eval" onclick="switchTab('eval')">✏️ 평가</button>
+  </div>
+  <div class="panel-body" id="panel-body">
+    <div class="loading-cell">불러오는 중...</div>
+  </div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────
+const S = {
+  filters: { recruitment_id:'', track:'', status:'', decision:'', search:'', sort:'created_at', order:'desc' },
+  applicants: [],
+  currentId: null,
+  currentData: null,
+  tab: 'app',
+  draft: { decision:'pending', score:null, memo:'' },
+};
+
+// ── Utils ────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function debounce(fn, ms) {
+  let t;
+  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = new Date(s);
+  return `${String(d.getFullYear()).slice(2)}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+function fmtDateTime(s) {
+  if (!s) return '';
+  const d = new Date(s);
+  return `${fmtDate(s)} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// Badges
+const TRACK_LABEL = { ANALYSIS:'분석', VISUALIZATION:'시각화', ENGINEERING:'엔지니어링', ALL:'전체' };
+function trackBadge(t) {
+  const cls = ['ANALYSIS','VISUALIZATION','ENGINEERING'].includes(t) ? t : '기타';
+  return `<span class="badge track-${cls}">${esc(TRACK_LABEL[t] || t || '—')}</span>`;
+}
+function decBadge(ev) {
+  const d = ev?.decision || 'pending';
+  const lbl = {pending:'검토중', pass:'합격', fail:'불합격', hold:'보류'}[d] || d;
+  return `<span class="badge d-${d}">${lbl}</span>`;
+}
+
+// ── API ──────────────────────────────────────────────────
+async function get(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+async function post(url, data) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(data),
+  });
+  return r.json();
+}
+
+// ── Init ─────────────────────────────────────────────────
+async function init() {
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+  await loadRecruitments();
+  await Promise.all([loadStats(), loadApplicants()]);
+}
+
+async function loadRecruitments() {
+  try {
+    const ids = await get('/api/recruitments');
+    const sel = document.getElementById('sel-rec');
+    ids.forEach(id => {
+      const o = document.createElement('option');
+      o.value = id;
+      o.textContent = `공고 #${id}`;
+      sel.appendChild(o);
+    });
+    if (ids.length > 0) {
+      sel.value = ids[0];
+      S.filters.recruitment_id = String(ids[0]);
+    }
+  } catch(e) { console.warn('recruitments:', e); }
+}
+
+async function loadStats() {
+  try {
+    const q = S.filters.recruitment_id ? `?recruitment_id=${S.filters.recruitment_id}` : '';
+    const d = await get('/api/stats' + q);
+    const order = ['ANALYSIS','VISUALIZATION','ENGINEERING'];
+    const byTrack = Object.fromEntries((d.by_track||[]).map(r=>[r.track, r.cnt]));
+    let html = `<div class="stat-chip total">전체 <strong>${d.total}</strong>명</div>`;
+    order.forEach(t => {
+      if (byTrack[t]) html += `<div class="stat-chip track-${t}">${TRACK_LABEL[t]||t} ${byTrack[t]}</div>`;
+    });
+    document.getElementById('header-stats').innerHTML = html;
+  } catch(e) { console.warn('stats:', e); }
+}
+
+// ── Applicants ───────────────────────────────────────────
+async function loadApplicants() {
+  document.getElementById('tbody').innerHTML =
+    '<tr><td colspan="8" class="loading-cell">불러오는 중...</td></tr>';
+  try {
+    const f = S.filters;
+    const p = new URLSearchParams();
+    if (f.recruitment_id) p.set('recruitment_id', f.recruitment_id);
+    if (f.track)          p.set('track', f.track);
+    if (f.status)         p.set('status', f.status);
+    if (f.decision)       p.set('decision', f.decision);
+    if (f.search)         p.set('search', f.search);
+    p.set('sort', f.sort); p.set('order', f.order);
+
+    S.applicants = await get('/api/applicants?' + p);
+    render();
+  } catch(e) {
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="8" style="text-align:center;padding:40px;color:#ef4444">오류: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+function render() {
+  const tbody = document.getElementById('tbody');
+  const list  = S.applicants;
+  document.getElementById('tbl-count').innerHTML = `총 <strong>${list.length}</strong>명`;
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="8">
+      <div class="empty-state">
+        <div class="icon">🔍</div>
+        <p>조건에 맞는 지원자가 없습니다</p>
+        <small>필터를 변경해보세요</small>
+      </div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(a => `
+    <tr class="${a.id === S.currentId ? 'selected' : ''}" onclick="openPanel(${a.id})">
+      <td>
+        <div class="applicant-name">${esc(a.name||'—')}</div>
+        <div class="applicant-sub">${esc(a.email||'')}</div>
+      </td>
+      <td>${trackBadge(a.track)}</td>
+      <td>
+        <div class="univ-name">${esc(a.university||'—')}</div>
+        <div class="major-name">${esc(a.major||'')}</div>
+      </td>
+      <td style="color:#64748b">${a.last_semester ? a.last_semester+'학기' : '—'}</td>
+      <td style="color:#64748b;white-space:nowrap">${esc(a.graduation_date||'—')}</td>
+      <td style="color:#64748b;white-space:nowrap">${fmtDateTime(a.created_at)}</td>
+      <td><span class="badge status-${a.status||'DRAFT'}">${a.status==='SUBMITTED'?'제출':'임시저장'}</span></td>
+      <td>${decBadge(a.eval)}</td>
+    </tr>`).join('');
+}
+
+// ── Panel ─────────────────────────────────────────────────
+async function openPanel(id) {
+  S.currentId = id;
+  S.tab = 'app';
+  document.getElementById('overlay').classList.add('active');
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('pt-app').classList.add('active');
+  document.getElementById('pt-eval').classList.remove('active');
+  document.getElementById('panel-body').innerHTML = '<div class="loading-cell">불러오는 중...</div>';
+  // highlight row
+  document.querySelectorAll('#tbody tr').forEach(tr => {
+    tr.classList.toggle('selected', tr.onclick?.toString().includes(`(${id})`));
+  });
+
+  try {
+    const d = await get(`/api/applicants/${id}`);
+    S.currentData = d;
+    document.getElementById('p-name').textContent = d.name || '—';
+    const tb = document.getElementById('p-track');
+    tb.textContent = d.track || '';
+    tb.className = `badge track-${['ANALYSIS','VISUALIZATION','ENGINEERING'].includes(d.track)?d.track:'기타'}`;
+
+    S.draft = {
+      decision: d.evaluation?.decision || 'pending',
+      score:    d.evaluation?.score    ?? null,
+      memo:     d.evaluation?.memo     || '',
+    };
+    renderBody();
+  } catch(e) {
+    document.getElementById('panel-body').innerHTML =
+      `<div style="color:#ef4444;padding:20px">오류: ${esc(e.message)}</div>`;
+  }
+}
+
+function closePanel() {
+  S.currentId = null; S.currentData = null;
+  document.getElementById('overlay').classList.remove('active');
+  document.getElementById('panel').classList.remove('open');
+  document.querySelectorAll('#tbody tr').forEach(tr => tr.classList.remove('selected'));
+}
+
+function switchTab(tab) {
+  S.tab = tab;
+  document.getElementById('pt-app').classList.toggle('active', tab==='app');
+  document.getElementById('pt-eval').classList.toggle('active', tab==='eval');
+  renderBody();
+}
+
+function renderBody() {
+  if (!S.currentData) return;
+  const el = document.getElementById('panel-body');
+  el.innerHTML = S.tab === 'app' ? buildAppTab(S.currentData) : buildEvalTab(S.currentData);
+  if (S.tab === 'eval') bindEval();
+}
+
+// ── Application Tab ───────────────────────────────────────
+function buildAppTab(d) {
+  function yn(v) { return v ? '예' : '아니오'; }
+
+  let minor = '—';
+  if (d.minor_double_major) {
+    if (Array.isArray(d.minor_double_major))
+      minor = d.minor_double_major.join(', ');
+    else if (typeof d.minor_double_major === 'object')
+      minor = Object.entries(d.minor_double_major).map(([k,v])=>`${k}: ${v}`).join(' / ');
+    else minor = String(d.minor_double_major);
+  }
+
+  let html = `
+    <div class="section">
+      <div class="section-title">기본 정보</div>
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-lbl">이메일</span>
+          <span class="info-val">${esc(d.email||'—')}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-lbl">전화번호</span>
+          <span class="info-val">${esc(d.phone||'—')}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-lbl">생년월일</span>
+          <span class="info-val">${d.birth_date ? String(d.birth_date).substring(0,10) : '—'}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-lbl">병역</span>
+          <span class="info-val">${esc(d.military_status||'—')}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-lbl">대학교</span>
+          <span class="info-val">${esc(d.university||'—')}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-lbl">본전공</span>
+          <span class="info-val">${esc(d.major||'—')}</span>
+        </div>
+        <div class="info-item full">
+          <span class="info-lbl">복수 / 부전공</span>
+          <span class="info-val">${esc(minor)}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-lbl">마지막 재학 학기</span>
+          <span class="info-val">${d.last_semester ? d.last_semester+'학기' : '—'}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-lbl">졸업 예정</span>
+          <span class="info-val">${esc(d.graduation_date||'—')}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-lbl">대학원 진학</span>
+          <span class="info-val">${yn(d.grad_school_plan)}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-lbl">제출일</span>
+          <span class="info-val">${fmtDate(d.created_at)}</span>
+        </div>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="section">
+      <div class="section-title">지원 답변 (${(d.answers||[]).length}개)</div>`;
+
+  if (!d.answers || d.answers.length === 0) {
+    html += '<p style="color:#94a3b8;font-size:13px">답변이 없습니다.</p>';
+  } else {
+    d.answers.forEach((ans, i) => {
+      const qLabel   = ans.q_label   ? esc(ans.q_label)   : `Q${esc(ans.question_id)}`;
+      const qContent = ans.q_content ? esc(ans.q_content) : '';
+      html += `<div class="answer-item">
+        <div class="answer-qid">
+          <span class="qid-tag">${qLabel}</span>
+          ${qContent ? `<span style="font-size:13px;color:#475569;font-weight:500">${qContent}</span>` : ''}
+        </div>`;
+
+      if (ans.answer_json && typeof ans.answer_json === 'object' && !Array.isArray(ans.answer_json)) {
+        const entries = Object.entries(ans.answer_json);
+        html += `<table class="json-tbl">
+          <thead><tr><th>항목</th><th>수준 / 내용</th></tr></thead>
+          <tbody>`;
+        entries.forEach(([k,v]) => { html += `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`; });
+        html += `</tbody></table>`;
+      } else if (ans.answer_text) {
+        html += `<div class="answer-text">${esc(ans.answer_text)}</div>`;
+      } else {
+        html += `<div class="answer-text" style="color:#94a3b8;font-style:italic">답변 없음</div>`;
+      }
+
+      html += '</div>';
+    });
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// ── Evaluation Tab ────────────────────────────────────────
+function buildEvalTab(d) {
+  const dr = S.draft;
+  const decMap = [
+    { v:'pass',    label:'합격 ✓',   cls:'sel-pass'    },
+    { v:'fail',    label:'불합격 ✗', cls:'sel-fail'    },
+    { v:'hold',    label:'보류 ～',  cls:'sel-hold'    },
+    { v:'pending', label:'검토중',   cls:'sel-pending' },
+  ];
+
+  const decBtns = decMap.map(o =>
+    `<button class="dec-btn ${dr.decision===o.v?o.cls:''}"
+             data-v="${o.v}" onclick="pickDecision('${o.v}')">${o.label}</button>`
+  ).join('');
+
+  let footer = '';
+  if (d.evaluation?.updated_at) {
+    footer = `<div class="eval-footer">마지막 저장: ${fmtDateTime(d.evaluation.updated_at)}</div>`;
+  }
+
+  return `
+    <div class="section">
+      <span class="eval-label">최종 결정</span>
+      <div class="decision-grid">${decBtns}</div>
+
+      <span class="eval-label">점수 (1 ~ 10)</span>
+      <div class="score-row">
+        <input type="number" class="score-input" id="ev-score"
+               min="1" max="10" step="0.5"
+               value="${dr.score ?? ''}" placeholder="—"
+               oninput="S.draft.score = this.value ? parseFloat(this.value) : null">
+        <span class="score-suffix">/ 10점</span>
+      </div>
+
+      <span class="eval-label">메모</span>
+      <textarea class="memo-area" id="ev-memo"
+                placeholder="평가 메모를 입력하세요..."
+                oninput="S.draft.memo = this.value">${esc(dr.memo)}</textarea>
+
+      <button class="save-btn" id="save-btn" onclick="saveEval()">저장하기</button>
+      <div class="save-msg" id="save-msg"></div>
+      ${footer}
+    </div>`;
+}
+
+function bindEval() { /* oninput handlers inline */ }
+
+function pickDecision(v) {
+  S.draft.decision = v;
+  const clsMap = { pass:'sel-pass', fail:'sel-fail', hold:'sel-hold', pending:'sel-pending' };
+  document.querySelectorAll('.dec-btn').forEach(btn => {
+    btn.className = `dec-btn ${btn.dataset.v === v ? clsMap[btn.dataset.v] : ''}`;
+  });
+}
+
+async function saveEval() {
+  if (!S.currentId) return;
+  const btn = document.getElementById('save-btn');
+  const msg = document.getElementById('save-msg');
+  btn.disabled = true; btn.textContent = '저장 중...';
+  msg.className = 'save-msg'; msg.textContent = '';
+
+  try {
+    await post(`/api/evaluations/${S.currentId}`, S.draft);
+    msg.className = 'save-msg ok'; msg.textContent = '✓ 저장되었습니다';
+    btn.textContent = '저장하기'; btn.disabled = false;
+
+    // Update list row in memory + DOM
+    const idx = S.applicants.findIndex(a => a.id === S.currentId);
+    if (idx !== -1) {
+      S.applicants[idx].eval = { ...S.draft };
+      const rows = document.querySelectorAll('#tbody tr');
+      if (rows[idx]) {
+        const cell = rows[idx].querySelector('td:last-child');
+        if (cell) cell.innerHTML = decBadge(S.draft);
+      }
+    }
+    if (S.currentData) S.currentData.evaluation = { ...S.draft };
+
+    setTimeout(() => { if(msg) msg.textContent = ''; }, 3000);
+  } catch(e) {
+    msg.className = 'save-msg err'; msg.textContent = '⚠ 저장 실패: ' + e.message;
+    btn.textContent = '저장하기'; btn.disabled = false;
+  }
+}
+
+// ── Filter Handlers ───────────────────────────────────────
+function onRecChange() {
+  S.filters.recruitment_id = document.getElementById('sel-rec').value;
+  loadStats();
+  loadApplicants();
+}
+
+function setPill(type, btn, val) {
+  const groupIds = { track:'track-pills', status:'status-pills', decision:'decision-pills' };
+  document.querySelectorAll(`#${groupIds[type]} .pill`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (type === 'track')    S.filters.track    = val;
+  if (type === 'status')   S.filters.status   = val;
+  if (type === 'decision') S.filters.decision = val;
+  loadApplicants();
+}
+
+const onSearch = debounce(() => {
+  S.filters.search = document.getElementById('search-input').value;
+  loadApplicants();
+}, 280);
+
+function onSortChange() {
+  const [col, ord] = document.getElementById('sel-sort').value.split('|');
+  S.filters.sort = col; S.filters.order = ord;
+  loadApplicants();
+}
+
+// ── CSV Download ─────────────────────────────────────────
+function downloadCSV() {
+  const f = S.filters;
+  const p = new URLSearchParams();
+  if (f.recruitment_id) p.set('recruitment_id', f.recruitment_id);
+  if (f.track)          p.set('track', f.track);
+  if (f.status)         p.set('status', f.status);
+  if (f.decision)       p.set('decision', f.decision);
+  if (f.search)         p.set('search', f.search);
+  p.set('sort', f.sort);
+  p.set('order', f.order);
+  window.location.href = '/api/applicants/export?' + p;
+}
+
+// ── Go ────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
