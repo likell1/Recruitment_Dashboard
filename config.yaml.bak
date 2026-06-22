@@ -1,0 +1,17 @@
+# ── SSH 터널 설정 ─────────────────────────────────────────
+# 서버에 SSH로 접속하는 경우 아래 설정을 입력하세요.
+# SSH 터널을 사용하지 않으려면 이 섹션 전체를 주석 처리하세요.
+# ssh:
+#   host: your-server.com       # 서버 IP 또는 도메인
+#   port: 22                    # SSH 포트 (기본: 22)
+#   username: ubuntu            # SSH 사용자 이름
+#   pkey: ~/.ssh/id_rsa         # SSH 키 파일 경로 (키 인증 사용 시)
+#   # password: yourpassword    # 비밀번호 인증 시 주석 해제
+
+# ── MySQL DB 설정 ─────────────────────────────────────────
+database:
+  host: 127.0.0.1             # 서버 내에서 MySQL이 바인딩된 주소 (보통 127.0.0.1)
+  port: 3306
+  user: root
+  password: your_db_password
+  database: your_db_name

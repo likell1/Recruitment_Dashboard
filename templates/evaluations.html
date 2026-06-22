@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>평가자 대시보드</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="8" fill="#3b82f6"/>
+      <path d="M8 9h12M8 14h12M8 19h7" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+    <span class="header-title">평가자 대시보드</span>
+    <nav class="header-nav">
+      <a class="header-link" href="/">지원자</a>
+      <a class="header-link active" href="/evaluations">평가자</a>
+    </nav>
+  </div>
+  <div class="header-stats" id="header-stats"></div>
+</header>
+
+<div class="toolbar">
+  <div class="tb-group">
+    <span class="tb-label">공고</span>
+    <select id="sel-rec" onchange="onRecChange()">
+      <option value="">전체</option>
+    </select>
+  </div>
+
+  <div class="tb-group">
+    <span class="tb-label">트랙</span>
+    <div class="pill-group" id="track-pills">
+      <button class="pill active" onclick="setPill('track',this,'')">전체</button>
+      <button class="pill p-ANALYSIS" onclick="setPill('track',this,'ANALYSIS')">분석</button>
+      <button class="pill p-VISUALIZATION" onclick="setPill('track',this,'VISUALIZATION')">시각화</button>
+      <button class="pill p-ENGINEERING" onclick="setPill('track',this,'ENGINEERING')">엔지니어링</button>
+    </div>
+  </div>
+
+  <div class="tb-group">
+    <span class="tb-label">개인 평가</span>
+    <div class="pill-group" id="final-pills">
+      <button class="pill active" onclick="setPill('final_decision',this,'')">전체</button>
+      <button class="pill p-pending" onclick="setPill('final_decision',this,'pending')">미결</button>
+      <button class="pill p-pass" onclick="setPill('final_decision',this,'pass')">합격</button>
+      <button class="pill p-hold" onclick="setPill('final_decision',this,'hold')">보류</button>
+      <button class="pill p-fail" onclick="setPill('final_decision',this,'fail')">불합격</button>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input type="search" id="search-input" placeholder="이름, 이메일, 대학교, 전공 검색..." oninput="onSearch()">
+  </div>
+
+  <div class="sort-wrap">
+    <span class="tb-label">정렬</span>
+    <select id="sel-sort" onchange="onSortChange()">
+      <option value="total_score|desc">총점 높은순</option>
+      <option value="total_score|asc">총점 낮은순</option>
+      <option value="pass_count|desc">합격 개수순</option>
+      <option value="hold_count|desc">보류 개수순</option>
+      <option value="name|asc">이름 오름차순</option>
+    </select>
+  </div>
+</div>
+
+<div class="main">
+  <div class="table-meta">
+    <span class="table-count" id="tbl-count">불러오는 중...</span>
+    <span class="table-hint">지원자를 클릭하면 지원서, 개인 평가, 평가 현황을 볼 수 있습니다.</span>
+  </div>
+  <div class="table-wrap eval-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>지원자</th>
+          <th>부문</th>
+          <th>학교 / 전공</th>
+          <th>학기</th>
+          <th>졸업 예정</th>
+          <th>합격</th>
+          <th>보류</th>
+          <th>불합</th>
+          <th>총점</th>
+          <th>개인 평가</th>
+          <th>최종 평가</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="11" class="loading-cell">불러오는 중...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+
+<div class="panel eval-panel" id="panel">
+  <div class="panel-hdr">
+    <div class="panel-hdr-left">
+      <span class="panel-name" id="p-name">-</span>
+      <span class="badge" id="p-track"></span>
+    </div>
+    <button class="panel-close" onclick="closePanel()" title="닫기">X</button>
+  </div>
+  <div class="panel-tabs">
+    <button class="panel-tab active" id="pt-app" onclick="switchTab('app')">지원서</button>
+    <button class="panel-tab" id="pt-final" onclick="switchTab('final')">개인 평가</button>
+    <button class="panel-tab" id="pt-status" onclick="switchTab('status')">평가 현황</button>
+    <div class="panel-tab-actions">
+      <button class="panel-nav-btn" onclick="moveApplicant(-1)" title="이전 지원자">이전</button>
+      <button class="panel-nav-btn" onclick="moveApplicant(1)" title="다음 지원자">다음</button>
+    </div>
+  </div>
+  <div class="panel-body" id="panel-body">
+    <div class="loading-cell">불러오는 중...</div>
+  </div>
+</div>
+
+<script>
+const S = {
+  filters: { recruitment_id:'', track:'', final_decision:'', search:'', sort:'total_score', order:'desc' },
+  rows: [],
+  currentId: null,
+  currentData: null,
+  tab: 'app',
+  finalDraft: { decision:'pending', score:null, memo:'' },
+};
+
+const TRACK_LABEL = { ANALYSIS:'분석', VISUALIZATION:'시각화', ENGINEERING:'엔지니어링' };
+const DEC_LABEL = { pending:'미결', pass:'합격', fail:'불합격', hold:'보류' };
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function debounce(fn, ms) {
+  let t;
+  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+function trackBadge(t) {
+  const cls = ['ANALYSIS','VISUALIZATION','ENGINEERING'].includes(t) ? t : '기타';
+  return `<span class="badge track-${cls}">${esc(TRACK_LABEL[t] || t || '-')}</span>`;
+}
+function decBadge(decision) {
+  const d = decision || 'pending';
+  return `<span class="badge d-${d}">${DEC_LABEL[d] || d}</span>`;
+}
+async function get(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+function buildPlaceholderEvaluations(applicant) {
+  const reviewers = ['평가자 1','평가자 2','평가자 3','평가자 4','평가자 5','평가자 6','평가자 7'];
+  const decisions = ['pass','hold','fail','pass','pending','hold','pass'];
+  return reviewers.map((name, idx) => {
+    const seed = ((applicant.id || 0) + idx * 13) % 31;
+    const decision = decisions[((applicant.id || 0) + idx) % decisions.length];
+    return {
+      reviewer_name: name,
+      decision,
+      score: decision === 'pending' ? null : Math.max(0, Math.min(100, 58 + seed + (decision === 'pass' ? 12 : decision === 'fail' ? -28 : 0))),
+      memo: decision === 'pending' ? '' : 'API 연결 전 임시 표시입니다.',
+    };
+  });
+}
+function summarizeEvaluations(evaluations) {
+  const done = evaluations.filter(ev => ev.decision && ev.decision !== 'pending');
+  return {
+    pass_count: done.filter(ev => ev.decision === 'pass').length,
+    hold_count: done.filter(ev => ev.decision === 'hold').length,
+    fail_count: done.filter(ev => ev.decision === 'fail').length,
+    total_score: done.reduce((sum, ev) => sum + (Number(ev.score) || 0), 0),
+  };
+}
+function normalizeRows(applicants) {
+  return applicants.map(a => {
+    const evaluatorEvaluations = a.evaluator_evaluations || a.evaluations || buildPlaceholderEvaluations(a);
+    const summary = a.evaluation_summary || summarizeEvaluations(evaluatorEvaluations);
+    return {
+      ...a,
+      evaluator_evaluations: evaluatorEvaluations,
+      personal_evaluation: a.personal_evaluation || a.eval || { decision:'pending', score:null, memo:'' },
+      final_evaluation: a.final_evaluation || { decision:'pending', score:null, memo:'' },
+      ...summary,
+    };
+  });
+}
+
+async function init() {
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+  await loadRecruitments();
+  await loadEvaluationDashboard();
+}
+async function loadRecruitments() {
+  try {
+    const ids = await get('/api/recruitments');
+    const sel = document.getElementById('sel-rec');
+    ids.forEach(id => {
+      const o = document.createElement('option');
+      o.value = id;
+      o.textContent = `공고 #${id}`;
+      sel.appendChild(o);
+    });
+    if (ids.length > 0) {
+      sel.value = ids[0];
+      S.filters.recruitment_id = String(ids[0]);
+    }
+  } catch(e) { console.warn('recruitments:', e); }
+}
+async function loadEvaluationDashboard() {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="11" class="loading-cell">불러오는 중...</td></tr>';
+  try {
+    const f = S.filters;
+    const p = new URLSearchParams();
+    if (f.recruitment_id) p.set('recruitment_id', f.recruitment_id);
+    if (f.track) p.set('track', f.track);
+    if (f.search) p.set('search', f.search);
+    p.set('sort', 'created_at');
+    p.set('order', 'desc');
+
+    const applicants = await get('/api/applicants?' + p);
+    S.rows = normalizeRows(applicants);
+    render();
+  } catch(e) {
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="11" style="text-align:center;padding:40px;color:#ef4444">오류: ${esc(e.message)}</td></tr>`;
+  }
+}
+function visibleRows() {
+  let list = S.rows.slice();
+  if (S.filters.final_decision) {
+    list = list.filter(r => (r.personal_evaluation?.decision || 'pending') === S.filters.final_decision);
+  }
+  const { sort, order } = S.filters;
+  list.sort((a, b) => {
+    let av = sort === 'name' ? (a.name || '') : Number(a[sort] || 0);
+    let bv = sort === 'name' ? (b.name || '') : Number(b[sort] || 0);
+    if (sort === 'name') return order === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    return order === 'asc' ? av - bv : bv - av;
+  });
+  return list;
+}
+function render() {
+  const list = visibleRows();
+  document.getElementById('tbl-count').innerHTML = `총 <strong>${list.length}</strong>명`;
+  document.getElementById('header-stats').innerHTML =
+    `<div class="stat-chip total">전체 <strong>${S.rows.length}</strong>명</div>` +
+    `<div class="stat-chip pass">합격 ${S.rows.reduce((s,r)=>s+r.pass_count,0)}</div>` +
+    `<div class="stat-chip hold">보류 ${S.rows.reduce((s,r)=>s+r.hold_count,0)}</div>` +
+    `<div class="stat-chip fail">불합 ${S.rows.reduce((s,r)=>s+r.fail_count,0)}</div>`;
+
+  const tbody = document.getElementById('tbody');
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="icon">-</div><p>조건에 맞는 지원자가 없습니다</p><small>필터를 변경해보세요</small></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(a => `
+    <tr class="${a.id === S.currentId ? 'selected' : ''}" onclick="openPanel(${a.id})">
+      <td>
+        <div class="applicant-name">${esc(a.name || '-')}</div>
+        <div class="applicant-sub">${esc(a.email || '')}</div>
+      </td>
+      <td>${trackBadge(a.track)}</td>
+      <td>
+        <div class="univ-name">${esc(a.university || '-')}</div>
+        <div class="major-name">${esc(a.major || '')}</div>
+      </td>
+      <td style="color:#64748b">${a.last_semester ? a.last_semester + '학기' : '-'}</td>
+      <td style="color:#64748b;white-space:nowrap">${esc(a.graduation_date || '-')}</td>
+      <td><span class="metric pass">${a.pass_count}</span></td>
+      <td><span class="metric hold">${a.hold_count}</span></td>
+      <td><span class="metric fail">${a.fail_count}</span></td>
+      <td><strong>${a.total_score}</strong></td>
+      <td>${decBadge(a.personal_evaluation?.decision)}</td>
+      <td>${decBadge(a.final_evaluation?.decision)}</td>
+    </tr>`).join('');
+}
+
+function openPanel(id, preferredTab = 'app') {
+  const row = S.rows.find(r => r.id === id);
+  if (!row) return;
+  S.currentId = id;
+  S.currentData = row;
+  S.tab = preferredTab;
+  S.finalDraft = { ...(row.personal_evaluation || { decision:'pending', score:null, memo:'' }) };
+  document.getElementById('overlay').classList.add('active');
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('p-name').textContent = row.name || '-';
+  const track = document.getElementById('p-track');
+  track.className = `badge track-${['ANALYSIS','VISUALIZATION','ENGINEERING'].includes(row.track) ? row.track : '기타'}`;
+  track.textContent = TRACK_LABEL[row.track] || row.track || '-';
+  switchTab(preferredTab);
+}
+function closePanel() {
+  S.currentId = null;
+  S.currentData = null;
+  document.getElementById('overlay').classList.remove('active');
+  document.getElementById('panel').classList.remove('open');
+  render();
+}
+function switchTab(tab) {
+  S.tab = tab;
+  document.getElementById('pt-app').classList.toggle('active', tab === 'app');
+  document.getElementById('pt-final').classList.toggle('active', tab === 'final');
+  document.getElementById('pt-status').classList.toggle('active', tab === 'status');
+  renderPanelBody();
+}
+function moveApplicant(step) {
+  const list = visibleRows();
+  const idx = list.findIndex(row => row.id === S.currentId);
+  if (idx === -1 || !list.length) return;
+  const next = list[idx + step];
+  if (!next) return;
+  openPanel(next.id, S.tab);
+  render();
+}
+async function renderPanelBody() {
+  const el = document.getElementById('panel-body');
+  const d = S.currentData;
+  if (!d) return;
+  if (S.tab === 'status') {
+    el.innerHTML = buildStatusTab(d);
+  } else if (S.tab === 'final') {
+    el.innerHTML = buildFinalTab(d);
+  } else {
+    el.innerHTML = '<div class="loading-cell">지원서를 불러오는 중...</div>';
+    try {
+      const full = await get(`/api/applicants/${d.id}`);
+      el.innerHTML = buildApplicationTab(full);
+    } catch(e) {
+      el.innerHTML = `<div style="color:#ef4444;padding:20px">오류: ${esc(e.message)}</div>`;
+    }
+  }
+}
+function buildStatusTab(d) {
+  const decisionOrder = { pass: 0, hold: 1, fail: 2, pending: 3 };
+  const rows = (d.evaluator_evaluations || []).slice().sort((a, b) => {
+    const ao = decisionOrder[a.decision] ?? 4;
+    const bo = decisionOrder[b.decision] ?? 4;
+    if (ao !== bo) return ao - bo;
+    return (Number(b.score) || -1) - (Number(a.score) || -1);
+  });
+  return `
+    <div class="section">
+      <div class="section-title">평가 현황</div>
+      <div class="summary-grid">
+        <div><span class="summary-label">합격</span><strong class="metric pass">${d.pass_count}</strong></div>
+        <div><span class="summary-label">보류</span><strong class="metric hold">${d.hold_count}</strong></div>
+        <div><span class="summary-label">불합</span><strong class="metric fail">${d.fail_count}</strong></div>
+        <div><span class="summary-label">총점</span><strong>${d.total_score}</strong></div>
+      </div>
+      <table class="json-tbl eval-status-table">
+        <thead><tr><th>평가자</th><th>평가</th><th>점수</th><th>메모</th></tr></thead>
+        <tbody>
+          ${rows.map(ev => `
+            <tr>
+              <td>${esc(ev.reviewer_name || ev.evaluator_name || '-')}</td>
+              <td>${decBadge(ev.decision)}</td>
+              <td>${ev.score ?? '-'}</td>
+              <td>${esc(ev.memo || '')}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+function buildFinalTab() {
+  const dr = S.finalDraft;
+  const items = [
+    ['pass','합격','sel-pass'],
+    ['hold','보류','sel-hold'],
+    ['fail','불합격','sel-fail'],
+    ['pending','미결','sel-pending'],
+  ];
+  return `
+    <div class="section">
+      <div class="section-title">개인 평가 수정</div>
+      <span class="eval-label">개인 결정</span>
+      <div class="decision-grid">
+        ${items.map(([v,label,cls]) => `<button class="dec-btn ${dr.decision === v ? cls : ''}" onclick="pickFinalDecision('${v}')">${label}</button>`).join('')}
+      </div>
+      <span class="eval-label">개인 점수</span>
+      <div class="score-row">
+        <input class="score-input" type="number" min="0" max="100" step="1" value="${dr.score ?? ''}" oninput="S.finalDraft.score = this.value ? Number(this.value) : null">
+        <span class="score-suffix">/ 100점</span>
+      </div>
+      <span class="eval-label">대표진 메모</span>
+      <textarea class="memo-area" oninput="S.finalDraft.memo = this.value" placeholder="개인 평가 메모">${esc(dr.memo || '')}</textarea>
+      <button class="save-btn" onclick="saveFinalEvaluation()">저장하기</button>
+      <div class="save-msg" id="save-msg"></div>
+    </div>`;
+}
+function buildApplicationTab(d) {
+  const answers = d.answers || [];
+  return `
+    <div class="section">
+      <div class="section-title">기본 정보</div>
+      <div class="info-grid">
+        <div class="info-item"><span class="info-lbl">이메일</span><span class="info-val">${esc(d.email || '-')}</span></div>
+        <div class="info-item"><span class="info-lbl">전화번호</span><span class="info-val">${esc(d.phone || '-')}</span></div>
+        <div class="info-item"><span class="info-lbl">대학교</span><span class="info-val">${esc(d.university || '-')}</span></div>
+        <div class="info-item"><span class="info-lbl">전공</span><span class="info-val">${esc(d.major || '-')}</span></div>
+        <div class="info-item"><span class="info-lbl">학기</span><span class="info-val">${d.last_semester ? d.last_semester + '학기' : '-'}</span></div>
+        <div class="info-item"><span class="info-lbl">졸업 예정</span><span class="info-val">${esc(d.graduation_date || '-')}</span></div>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="section">
+      <div class="section-title">지원 답변 (${answers.length}개)</div>
+      ${answers.length ? answers.map(ans => `
+        <div class="answer-item">
+          <div class="answer-qid">
+            <span class="qid-tag">${esc(ans.q_label || `Q${ans.question_id}`)}</span>
+            <span style="font-size:13px;color:#475569;font-weight:500">${esc(ans.q_content || '')}</span>
+          </div>
+          <div class="answer-text">${esc(ans.answer_text || JSON.stringify(ans.answer_json || '', null, 2) || '답변 없음')}</div>
+        </div>`).join('') : '<p style="color:#94a3b8;font-size:13px">답변이 없습니다.</p>'}
+    </div>`;
+}
+function pickFinalDecision(v) {
+  S.finalDraft.decision = v;
+  renderPanelBody();
+}
+function saveFinalEvaluation() {
+  const msg = document.getElementById('save-msg');
+  const row = S.rows.find(r => r.id === S.currentId);
+  if (!row) return;
+  row.personal_evaluation = { ...S.finalDraft };
+  msg.className = 'save-msg ok';
+  msg.textContent = 'API 연결 전 임시 저장 상태입니다.';
+  render();
+}
+
+function onRecChange() {
+  S.filters.recruitment_id = document.getElementById('sel-rec').value;
+  loadEvaluationDashboard();
+}
+function setPill(type, btn, val) {
+  const groupIds = { track:'track-pills', final_decision:'final-pills' };
+  document.querySelectorAll(`#${groupIds[type]} .pill`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  S.filters[type] = val;
+  if (type === 'track') loadEvaluationDashboard();
+  else render();
+}
+const onSearch = debounce(() => {
+  S.filters.search = document.getElementById('search-input').value;
+  loadEvaluationDashboard();
+}, 280);
+function onSortChange() {
+  const [col, ord] = document.getElementById('sel-sort').value.split('|');
+  S.filters.sort = col;
+  S.filters.order = ord;
+  render();
+}
+
+init();
+</script>
+</body>
+</html>

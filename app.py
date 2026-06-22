@@ -147,6 +147,10 @@ def debug_tables():
 def index():
     return render_template('index.html')
 
+@app.route('/evaluations')
+def evaluations_dashboard():
+    return render_template('evaluations.html')
+
 @app.route('/api/recruitments')
 def list_recruitments():
     conn = get_mysql()
