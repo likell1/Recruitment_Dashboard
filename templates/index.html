@@ -516,27 +516,7 @@
       margin-top: 12px;
     }
 
-    /* ── CSV Button ────────────────────────────────────── */
-    .csv-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 5px 12px;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
-      background: #fff;
-      color: #475569;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.15s;
-      white-space: nowrap;
-    }
-    .csv-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: #1e293b; }
-    .csv-btn:active { background: #e2e8f0; }
-
-    /* ── Scrollbar ─────────────────────────────────────── */
+/* ── Scrollbar ─────────────────────────────────────── */
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
@@ -613,14 +593,6 @@
       <option value="name|desc">이름 내림차순</option>
       <option value="university|asc">대학교순</option>
     </select>
-    <button class="csv-btn" onclick="downloadCSV()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      CSV 다운로드
-    </button>
   </div>
 </div>
 
@@ -1089,20 +1061,6 @@ function onSortChange() {
   const [col, ord] = document.getElementById('sel-sort').value.split('|');
   S.filters.sort = col; S.filters.order = ord;
   loadApplicants();
-}
-
-// ── CSV Download ─────────────────────────────────────────
-function downloadCSV() {
-  const f = S.filters;
-  const p = new URLSearchParams();
-  if (f.recruitment_id) p.set('recruitment_id', f.recruitment_id);
-  if (f.track)          p.set('track', f.track);
-  if (f.status)         p.set('status', f.status);
-  if (f.decision)       p.set('decision', f.decision);
-  if (f.search)         p.set('search', f.search);
-  p.set('sort', f.sort);
-  p.set('order', f.order);
-  window.location.href = '/api/applicants/export?' + p;
 }
 
 // ── Go ────────────────────────────────────────────────────
