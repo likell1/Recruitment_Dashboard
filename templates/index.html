@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>지원자 대시보드</title>
   <link rel="stylesheet" href="/static/styles.css">
+
 </head>
 <body>
 
@@ -80,14 +81,6 @@
       <option value="name|desc">이름 내림차순</option>
       <option value="university|asc">대학교순</option>
     </select>
-    <button class="csv-btn" onclick="downloadCSV()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      CSV 다운로드
-    </button>
   </div>
 </div>
 
@@ -582,20 +575,6 @@ function onSortChange() {
   const [col, ord] = document.getElementById('sel-sort').value.split('|');
   S.filters.sort = col; S.filters.order = ord;
   loadApplicants();
-}
-
-// ── CSV Download ─────────────────────────────────────────
-function downloadCSV() {
-  const f = S.filters;
-  const p = new URLSearchParams();
-  if (f.recruitment_id) p.set('recruitment_id', f.recruitment_id);
-  if (f.track)          p.set('track', f.track);
-  if (f.status)         p.set('status', f.status);
-  if (f.decision)       p.set('decision', f.decision);
-  if (f.search)         p.set('search', f.search);
-  p.set('sort', f.sort);
-  p.set('order', f.order);
-  window.location.href = '/api/applicants/export?' + p;
 }
 
 // ── Go ────────────────────────────────────────────────────
